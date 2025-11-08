@@ -2298,7 +2298,8 @@ class FileManagerApp:
         last_state = self.last_rules_state
         
         # Check if widget count is wrong (requires full rebuild)
-        widget_count_mismatch = len(self.rule_widgets) > len(self.rules)
+        # This handles cases where widgets were cleared or count doesn't match
+        widget_count_mismatch = len(self.rule_widgets) != len(self.rules)
         
         if widget_count_mismatch:
             return {'full_rebuild_needed': True}
@@ -2310,6 +2311,11 @@ class FileManagerApp:
         if rules_removed:
             # Rules were removed - need full rebuild to handle index changes
             return {'full_rebuild_needed': True}
+        
+        # Check if any rule type changed (requires full rebuild because widgets are different)
+        for i in range(min(len(current_state), len(last_state))):
+            if current_state[i].get('type') != last_state[i].get('type'):
+                return {'full_rebuild_needed': True}
         
         # Find specific changes
         updated_indices = []
@@ -2528,7 +2534,7 @@ class FileManagerApp:
         ToolTip(tag_entry, "Name of this rule's tag. Use {tag_name} in the naming pattern to insert values from this rule. Must be unique among all rules.")
         col += 1
         tag_entry.bind('<FocusOut>', lambda e, idx=index, var=tag_var: self.update_rule_tag(idx, var.get()))
-        tag_entry.bind('<Return>', lambda e, idx=index, var=tag_var: self.update_rule_tag(idx, var.get()))
+        tag_entry.bind('<Return>', lambda e, idx=index, var=tag_var, entry=tag_entry: self._handle_enter_update(entry, lambda: self.update_rule_tag(idx, var.get())))
         
         # Rule-specific fields and variables
         rule_specific_vars = {}
@@ -2564,13 +2570,13 @@ class FileManagerApp:
         # Bind step field events based on rule type
         if isinstance(rule, CounterRule):
             step_entry.bind('<FocusOut>', lambda e, idx=index, var=step_var: self.update_counter_step(idx, var.get()))
-            step_entry.bind('<Return>', lambda e, idx=index, var=step_var: self.update_counter_step(idx, var.get()))
+            step_entry.bind('<Return>', lambda e, idx=index, var=step_var, entry=step_entry: self._handle_enter_update(entry, lambda: self.update_counter_step(idx, var.get())))
         elif isinstance(rule, ListRule):
             step_entry.bind('<FocusOut>', lambda e, idx=index, var=step_var: self.update_list_step(idx, var.get()))
-            step_entry.bind('<Return>', lambda e, idx=index, var=step_var: self.update_list_step(idx, var.get()))
+            step_entry.bind('<Return>', lambda e, idx=index, var=step_var, entry=step_entry: self._handle_enter_update(entry, lambda: self.update_list_step(idx, var.get())))
         elif isinstance(rule, BatchRule):
             step_entry.bind('<FocusOut>', lambda e, idx=index, var=step_var: self.update_batch_step(idx, var.get()))
-            step_entry.bind('<Return>', lambda e, idx=index, var=step_var: self.update_batch_step(idx, var.get()))
+            step_entry.bind('<Return>', lambda e, idx=index, var=step_var, entry=step_entry: self._handle_enter_update(entry, lambda: self.update_batch_step(idx, var.get())))
         
         # Delete button (always at the end)
         delete_button = ttk.Button(rule_frame, text="✕", width=3,
@@ -2609,7 +2615,7 @@ class FileManagerApp:
         ToolTip(start_entry, "The counter begins with this value for the first file.")
         col += 1
         start_entry.bind('<FocusOut>', lambda e, idx=index, var=start_var: self.update_counter_start(idx, var.get()))
-        start_entry.bind('<Return>', lambda e, idx=index, var=start_var: self.update_counter_start(idx, var.get()))
+        start_entry.bind('<Return>', lambda e, idx=index, var=start_var, entry=start_entry: self._handle_enter_update(entry, lambda: self.update_counter_start(idx, var.get())))
         
         inc_label = ttk.Label(parent, text="Inc:")
         inc_label.grid(row=0, column=col, padx=(5, 2), sticky=tk.W)
@@ -2621,7 +2627,7 @@ class FileManagerApp:
         ToolTip(inc_entry, "Counter increases by this amount each step. Use negative values to count down.")
         col += 1
         inc_entry.bind('<FocusOut>', lambda e, idx=index, var=inc_var: self.update_counter_increment(idx, var.get()))
-        inc_entry.bind('<Return>', lambda e, idx=index, var=inc_var: self.update_counter_increment(idx, var.get()))
+        inc_entry.bind('<Return>', lambda e, idx=index, var=inc_var, entry=inc_entry: self._handle_enter_update(entry, lambda: self.update_counter_increment(idx, var.get())))
         
         max_label = ttk.Label(parent, text="Max:")
         max_label.grid(row=0, column=col, padx=(5, 2), sticky=tk.W)
@@ -2633,7 +2639,7 @@ class FileManagerApp:
         ToolTip(max_entry, "When reached, counter wraps back to start value. Leave empty for unlimited counting.")
         col += 1
         max_entry.bind('<FocusOut>', lambda e, idx=index, var=max_var: self.update_counter_max(idx, var.get()))
-        max_entry.bind('<Return>', lambda e, idx=index, var=max_var: self.update_counter_max(idx, var.get()))
+        max_entry.bind('<Return>', lambda e, idx=index, var=max_var, entry=max_entry: self._handle_enter_update(entry, lambda: self.update_counter_max(idx, var.get())))
         
         # Return column position and variables
         variables = {
@@ -2659,7 +2665,7 @@ class FileManagerApp:
         parent.columnconfigure(col, weight=1)
         col += 1
         values_entry.bind('<FocusOut>', lambda e, idx=index, var=values_var: self.update_list_values(idx, var.get()))
-        values_entry.bind('<Return>', lambda e, idx=index, var=values_var: self.update_list_values(idx, var.get()))
+        values_entry.bind('<Return>', lambda e, idx=index, var=values_var, entry=values_entry: self._handle_enter_update(entry, lambda: self.update_list_values(idx, var.get())))
         
         # Return column position and variables
         variables = {
@@ -2681,7 +2687,7 @@ class FileManagerApp:
         ToolTip(current_entry, "All files in this batch will use this value. Increments after each copy operation.")
         col += 1
         current_entry.bind('<FocusOut>', lambda e, idx=index, var=current_var: self.update_batch_current(idx, var.get()))
-        current_entry.bind('<Return>', lambda e, idx=index, var=current_var: self.update_batch_current(idx, var.get()))
+        current_entry.bind('<Return>', lambda e, idx=index, var=current_var, entry=current_entry: self._handle_enter_update(entry, lambda: self.update_batch_current(idx, var.get())))
         
         inc_label = ttk.Label(parent, text="Inc:")
         inc_label.grid(row=0, column=col, padx=(5, 2), sticky=tk.W)
@@ -2693,7 +2699,7 @@ class FileManagerApp:
         ToolTip(inc_entry, "Batch counter increases by this amount after each copy operation.")
         col += 1
         inc_entry.bind('<FocusOut>', lambda e, idx=index, var=inc_var: self.update_batch_increment(idx, var.get()))
-        inc_entry.bind('<Return>', lambda e, idx=index, var=inc_var: self.update_batch_increment(idx, var.get()))
+        inc_entry.bind('<Return>', lambda e, idx=index, var=inc_var, entry=inc_entry: self._handle_enter_update(entry, lambda: self.update_batch_increment(idx, var.get())))
         
         max_label = ttk.Label(parent, text="Max:")
         max_label.grid(row=0, column=col, padx=(5, 2), sticky=tk.W)
@@ -2705,7 +2711,7 @@ class FileManagerApp:
         ToolTip(max_entry, "When reached, batch counter wraps back to start. Leave empty for unlimited.")
         col += 1
         max_entry.bind('<FocusOut>', lambda e, idx=index, var=max_var: self.update_batch_max(idx, var.get()))
-        max_entry.bind('<Return>', lambda e, idx=index, var=max_var: self.update_batch_max(idx, var.get()))
+        max_entry.bind('<Return>', lambda e, idx=index, var=max_var, entry=max_entry: self._handle_enter_update(entry, lambda: self.update_batch_max(idx, var.get())))
         
         # Return column position and variables
         variables = {
@@ -2734,6 +2740,12 @@ class FileManagerApp:
         self.rule_widgets.clear()
         self.update_rules_display()
         self.update_files_display()  # Update preview
+    
+    def _handle_enter_update(self, entry_widget, update_func):
+        """Helper method to handle Enter key press: update and remove focus"""
+        update_func()
+        # Remove focus from the entry widget after update
+        entry_widget.master.focus_set()
     
     def update_rule_tag(self, index, new_tag):
         """Update a rule's tag name"""
