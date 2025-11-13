@@ -1,36 +1,64 @@
 {
   "source_folder": "D:/Honey Select/UserData/cap",
-  "dest_folder": "M:/MTS Project/Mind the School/game/images/events/truth_or_dare/truth_or_dare_4/truth_1",
+  "dest_folder": "M:/MTS Project/dialogue_images/adelaide_hall/bottom",
   "file_formats": ".png",
-  "naming_pattern": "truth_or_dare_4_truth_1 {level} {counter}",
+  "naming_pattern": "adelaide_hall {count} {mood}",
   "view_mode": "grid",
   "rules": [
     {
       "type": "counter",
-      "tag_name": "counter",
-      "start_value": 0,
+      "tag_name": "count",
+      "start_value": 28,
       "increment": 1,
-      "step": 1,
-      "max_value": 8
-    },
-    {
-      "type": "list",
-      "tag_name": "girl",
-      "values": [
-        "ikushi_ito",
-        "lin_kato",
-        "miwa_igarashi",
-        "ishimaru_maki"
-      ],
-      "step": 2
+      "step": 14,
+      "max_value": null
     },
     {
       "type": "counter",
       "tag_name": "level",
-      "start_value": 2,
+      "start_value": 1,
       "increment": 1,
-      "step": 9,
-      "max_value": null
+      "step": 1,
+      "max_value": 10
+    },
+    {
+      "type": "list",
+      "tag_name": "uniform",
+      "values": [
+        "nude $",
+        "uniform 1",
+        "uniform 2",
+        "uniform 3",
+        "uniform 4",
+        "uniform 5",
+        "uniform 6",
+        "uniform 7",
+        "uniform 8",
+        "uniform 9",
+        "uniform 10"
+      ],
+      "step": 1
+    },
+    {
+      "type": "list",
+      "tag_name": "mood",
+      "values": [
+        "angry closed",
+        "angry open",
+        "happy closed",
+        "happy open",
+        "neutral closed",
+        "neutral open",
+        "pout $",
+        "sad closed",
+        "sad open",
+        "shining closed",
+        "shining open",
+        "suprised $",
+        "suspicious closed",
+        "suspicious open"
+      ],
+      "step": 1
     }
   ]
 }

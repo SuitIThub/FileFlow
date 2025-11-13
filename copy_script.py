@@ -331,6 +331,11 @@ class FileManagerApp:
         self.copy_rename_btn = None
         self.clear_tracked_btn = None
         
+        # Word separator symbols for Ctrl+Arrow navigation
+        # Characters in this string will be treated as word separators
+        # Whitespace is always treated as a separator
+        self.word_separators = "{}[]().,;:!@#$%^&*-+=|\\/<>?~`\"'_"
+        
         # Settings file - ensure it's in the same directory as the script
         self.settings_file = os.path.join(self.script_dir, "file_manager_settings.json")
         
@@ -360,6 +365,7 @@ class FileManagerApp:
         
         self.source_entry = ttk.Entry(main_frame, textvariable=self.source_folder, width=50)
         self.source_entry.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=5)
+        self._setup_custom_word_navigation(self.source_entry)
         ToolTip(self.source_entry, "Path to the folder containing files to track. You can type a path or use the Browse button to select a folder.\n\nNote: This field is disabled while tracking is active to prevent conflicts.")
         
         self.source_create = ttk.Button(main_frame, text="Create", command=self.create_source_folder)
@@ -379,6 +385,7 @@ class FileManagerApp:
         
         self.dest_entry = ttk.Entry(main_frame, textvariable=self.dest_folder, width=50)
         self.dest_entry.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=5)
+        self._setup_custom_word_navigation(self.dest_entry)
         ToolTip(self.dest_entry, "Path to the destination folder. You can type a path or use the Browse button to select a folder.\n\nNote: This field is disabled while tracking is active to prevent conflicts.")
         
         self.dest_create = ttk.Button(main_frame, text="Create", command=self.create_dest_folder)
@@ -398,6 +405,7 @@ class FileManagerApp:
         
         self.formats_entry = ttk.Entry(main_frame, textvariable=self.file_formats, width=50)
         self.formats_entry.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=5)
+        self._setup_custom_word_navigation(self.formats_entry)
         ToolTip(self.formats_entry, "Semicolon-separated list of file formats to track. Examples:\n• '*' = all files\n• '.jpg;.png' = only jpg and png files\n• '*.txt;*.doc' = text and document files\n\nNote: This field is disabled while tracking is active to prevent conflicts.")
         row += 1
         
@@ -408,6 +416,7 @@ class FileManagerApp:
         
         pattern_entry = ttk.Entry(main_frame, textvariable=self.naming_pattern, width=50)
         pattern_entry.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=5)
+        self._setup_custom_word_navigation(pattern_entry)
         ToolTip(pattern_entry, "Enter the filename pattern using {tag_name} placeholders. Tags will be replaced with values from rules you create below. Example patterns:\n• 'file_{counter}' → file_1, file_2, etc.\n• '{list}_{counter}' → value1_1, value2_2, etc.\n• 'batch{batch}_item{counter}' → batch0_item1, batch0_item2, etc.")
         row += 1
         
@@ -2531,6 +2540,7 @@ class FileManagerApp:
         tag_var = tk.StringVar(value=rule.tag_name)
         tag_entry = ttk.Entry(rule_frame, textvariable=tag_var, width=12)
         tag_entry.grid(row=0, column=col, padx=(0, 5), sticky=tk.W)
+        self._setup_custom_word_navigation(tag_entry)
         ToolTip(tag_entry, "Name of this rule's tag. Use {tag_name} in the naming pattern to insert values from this rule. Must be unique among all rules.")
         col += 1
         tag_entry.bind('<FocusOut>', lambda e, idx=index, var=tag_var: self.update_rule_tag(idx, var.get()))
@@ -2564,6 +2574,7 @@ class FileManagerApp:
         step_var = tk.IntVar(value=rule.step)
         step_entry = ttk.Entry(rule_frame, textvariable=step_var, width=6)
         step_entry.grid(row=0, column=col, padx=(0, 5), sticky=tk.W)
+        self._setup_custom_word_navigation(step_entry)
         ToolTip(step_entry, "How many files to process before advancing this rule. Useful for applying the same value to groups of files.")
         col += 1
         
@@ -2612,6 +2623,7 @@ class FileManagerApp:
         start_var = tk.IntVar(value=rule.start_value)
         start_entry = ttk.Entry(parent, textvariable=start_var, width=6)
         start_entry.grid(row=0, column=col, padx=(0, 5), sticky=tk.W)
+        self._setup_custom_word_navigation(start_entry)
         ToolTip(start_entry, "The counter begins with this value for the first file.")
         col += 1
         start_entry.bind('<FocusOut>', lambda e, idx=index, var=start_var: self.update_counter_start(idx, var.get()))
@@ -2624,6 +2636,7 @@ class FileManagerApp:
         inc_var = tk.IntVar(value=rule.increment)
         inc_entry = ttk.Entry(parent, textvariable=inc_var, width=6)
         inc_entry.grid(row=0, column=col, padx=(0, 5), sticky=tk.W)
+        self._setup_custom_word_navigation(inc_entry)
         ToolTip(inc_entry, "Counter increases by this amount each step. Use negative values to count down.")
         col += 1
         inc_entry.bind('<FocusOut>', lambda e, idx=index, var=inc_var: self.update_counter_increment(idx, var.get()))
@@ -2636,6 +2649,7 @@ class FileManagerApp:
         max_var = tk.StringVar(value=str(rule.max_value) if rule.max_value is not None else "")
         max_entry = ttk.Entry(parent, textvariable=max_var, width=6)
         max_entry.grid(row=0, column=col, padx=(0, 5), sticky=tk.W)
+        self._setup_custom_word_navigation(max_entry)
         ToolTip(max_entry, "When reached, counter wraps back to start value. Leave empty for unlimited counting.")
         col += 1
         max_entry.bind('<FocusOut>', lambda e, idx=index, var=max_var: self.update_counter_max(idx, var.get()))
@@ -2660,6 +2674,7 @@ class FileManagerApp:
         values_var = tk.StringVar(value='; '.join(rule.values))
         values_entry = ttk.Entry(parent, textvariable=values_var)
         values_entry.grid(row=0, column=col, padx=(0, 5), sticky=(tk.W, tk.E))
+        self._setup_custom_word_navigation(values_entry)
         ToolTip(values_entry, "Separate values with semicolons (;). Examples: 'A;B;C' or 'red;green;blue' or '1;10;100'")
         # Configure this column to expand for list rules
         parent.columnconfigure(col, weight=1)
@@ -2684,6 +2699,7 @@ class FileManagerApp:
         current_var = tk.IntVar(value=rule.current_value)
         current_entry = ttk.Entry(parent, textvariable=current_var, width=6)
         current_entry.grid(row=0, column=col, padx=(0, 5), sticky=tk.W)
+        self._setup_custom_word_navigation(current_entry)
         ToolTip(current_entry, "All files in this batch will use this value. Increments after each copy operation.")
         col += 1
         current_entry.bind('<FocusOut>', lambda e, idx=index, var=current_var: self.update_batch_current(idx, var.get()))
@@ -2696,6 +2712,7 @@ class FileManagerApp:
         inc_var = tk.IntVar(value=rule.increment)
         inc_entry = ttk.Entry(parent, textvariable=inc_var, width=6)
         inc_entry.grid(row=0, column=col, padx=(0, 5), sticky=tk.W)
+        self._setup_custom_word_navigation(inc_entry)
         ToolTip(inc_entry, "Batch counter increases by this amount after each copy operation.")
         col += 1
         inc_entry.bind('<FocusOut>', lambda e, idx=index, var=inc_var: self.update_batch_increment(idx, var.get()))
@@ -2708,6 +2725,7 @@ class FileManagerApp:
         max_var = tk.StringVar(value=str(rule.max_value) if rule.max_value is not None else "")
         max_entry = ttk.Entry(parent, textvariable=max_var, width=6)
         max_entry.grid(row=0, column=col, padx=(0, 5), sticky=tk.W)
+        self._setup_custom_word_navigation(max_entry)
         ToolTip(max_entry, "When reached, batch counter wraps back to start. Leave empty for unlimited.")
         col += 1
         max_entry.bind('<FocusOut>', lambda e, idx=index, var=max_var: self.update_batch_max(idx, var.get()))
@@ -2746,6 +2764,104 @@ class FileManagerApp:
         update_func()
         # Remove focus from the entry widget after update
         entry_widget.master.focus_set()
+    
+    def _is_word_char(self, char):
+        """Check if a character is part of a word (alphanumeric or underscore, and not in separator string)"""
+        # Whitespace is always a separator
+        if char.isspace():
+            return False
+        # Check if character is in the separator string
+        if char in self.word_separators:
+            return False
+        # Word characters are alphanumeric or underscore
+        return char.isalnum() or char == '_'
+    
+    def _find_word_start(self, text, pos):
+        """Find the start of the word at position pos, treating symbols as separators"""
+        if pos <= 0:
+            return 0
+        
+        # Move back to find the start of the current word
+        # A word starts when we transition from non-word to word character
+        i = pos - 1
+        
+        # Skip any non-word characters at current position
+        while i >= 0 and not self._is_word_char(text[i]):
+            i -= 1
+        
+        # Now find the start of the word
+        while i > 0 and self._is_word_char(text[i - 1]):
+            i -= 1
+        
+        return i
+    
+    def _find_word_end(self, text, pos):
+        """Find the end of the word at position pos, treating symbols as separators"""
+        if pos >= len(text):
+            return len(text)
+        
+        # Move forward to find the end of the current word
+        # A word ends when we transition from word to non-word character
+        i = pos
+        
+        # Skip any non-word characters at current position
+        while i < len(text) and not self._is_word_char(text[i]):
+            i += 1
+        
+        # Now find the end of the word
+        while i < len(text) and self._is_word_char(text[i]):
+            i += 1
+        
+        return i
+    
+    def _on_ctrl_left(self, event):
+        """Handle Ctrl+Left: move to start of previous word"""
+        widget = event.widget
+        if not isinstance(widget, (tk.Entry, ttk.Entry)):
+            return
+        
+        try:
+            text = widget.get()
+            cursor_pos = widget.index(tk.INSERT)
+            
+            # Find start of current word
+            word_start = self._find_word_start(text, cursor_pos)
+            
+            # If we're already at the start of a word, move to start of previous word
+            if word_start == cursor_pos and cursor_pos > 0:
+                word_start = self._find_word_start(text, cursor_pos - 1)
+            
+            widget.icursor(word_start)
+            return "break"
+        except Exception:
+            return None
+    
+    def _on_ctrl_right(self, event):
+        """Handle Ctrl+Right: move to end of next word"""
+        widget = event.widget
+        if not isinstance(widget, (tk.Entry, ttk.Entry)):
+            return
+        
+        try:
+            text = widget.get()
+            cursor_pos = widget.index(tk.INSERT)
+            
+            # Find end of current word
+            word_end = self._find_word_end(text, cursor_pos)
+            
+            # If we're already at the end of a word, move to end of next word
+            if word_end == cursor_pos and cursor_pos < len(text):
+                word_end = self._find_word_end(text, cursor_pos + 1)
+            
+            widget.icursor(word_end)
+            return "break"
+        except Exception:
+            return None
+    
+    def _setup_custom_word_navigation(self, entry_widget):
+        """Set up custom word navigation for an Entry widget"""
+        entry_widget.bind('<Control-Left>', self._on_ctrl_left)
+        entry_widget.bind('<Control-Right>', self._on_ctrl_right)
     
     def update_rule_tag(self, index, new_tag):
         """Update a rule's tag name"""
