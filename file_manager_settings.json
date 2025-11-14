@@ -8,7 +8,7 @@
     {
       "type": "counter",
       "tag_name": "count",
-      "start_value": 11,
+      "start_value": 118,
       "increment": 1,
       "step": 23,
       "max_value": null
