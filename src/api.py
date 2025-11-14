@@ -18,6 +18,11 @@ class FileManagerAPI:
     def setup_routes(self):
         """Setup all API routes"""
         
+        @self.flask_app.route('/api/health', methods=['GET'])
+        def healthcheck():
+            """Health check endpoint"""
+            return jsonify({'status': 'healthy', 'service': 'FileManagerAPI'}), 200
+        
         @self.flask_app.route('/api/tracking/start', methods=['POST'])
         def start_tracking():
             try:

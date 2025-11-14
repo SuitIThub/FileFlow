@@ -37,7 +37,33 @@ All responses include a `success` boolean field. The structure of successful res
 
 ## Endpoints
 
-### 1. Start Tracking
+### 1. Health Check
+
+Check if the API server is running and healthy.
+
+**Endpoint:** `GET /api/health`
+
+**Request:** No parameters required
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "service": "FileManagerAPI"
+}
+```
+
+**Example:**
+```bash
+curl http://127.0.0.1:5000/api/health
+```
+
+**Note:** This endpoint always returns a 200 status code when the API server is running. It does not include the `success` field as it's a simple health check endpoint.
+
+
+
+
+### 2. Start Tracking
 
 Start monitoring the source folder for new files.
 
@@ -60,7 +86,7 @@ curl -X POST http://127.0.0.1:5000/api/tracking/start
 
 
 
-### 2. Stop Tracking
+### 3. Stop Tracking
 
 Stop monitoring the source folder for new files.
 
@@ -83,7 +109,7 @@ curl -X POST http://127.0.0.1:5000/api/tracking/stop
 
 
 
-### 3. Get/Set Source Path
+### 4. Get/Set Source Path
 
 Get or set the source folder path that is being monitored.
 
@@ -128,7 +154,7 @@ curl -X POST http://127.0.0.1:5000/api/source_path \
 
 
 
-### 4. Get/Set Destination Path
+### 5. Get/Set Destination Path
 
 Get or set the destination folder path where files will be copied.
 
@@ -173,7 +199,7 @@ curl -X POST http://127.0.0.1:5000/api/destination_path \
 
 
 
-### 5. Get/Set Name Pattern
+### 6. Get/Set Name Pattern
 
 Get or set the naming pattern used for renaming files.
 
@@ -218,7 +244,7 @@ curl -X POST http://127.0.0.1:5000/api/name_pattern \
 
 
 
-### 6. Get Tracked Files / Clear Tracked Files
+### 7. Get Tracked Files / Clear Tracked Files
 
 Get the latest tracked files with their state information, or clear all tracked files.
 
@@ -286,7 +312,7 @@ curl -X DELETE http://127.0.0.1:5000/api/tracking
 
 
 
-### 7. Copy and Rename
+### 8. Copy and Rename
 
 Copy all tracked files to the destination folder with new names based on the naming pattern.
 
@@ -311,7 +337,7 @@ curl -X POST http://127.0.0.1:5000/api/copy_rename
 
 
 
-### 8. Get Application Status
+### 9. Get Application Status
 
 Get the current status of the application including tracking state, file counts, and current settings.
 
@@ -360,6 +386,13 @@ public class FileManagerApiClient
         {
             BaseAddress = new Uri(_baseUrl)
         };
+    }
+
+    // Health check
+    public async Task<bool> HealthCheckAsync()
+    {
+        var response = await _client.GetAsync("/api/health");
+        return response.IsSuccessStatusCode;
     }
 
     // Start tracking
