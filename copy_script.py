@@ -331,6 +331,11 @@ class FileManagerApp:
         self.copy_rename_btn = None
         self.clear_tracked_btn = None
         
+        # UI label references for file count and latest rename
+        self.file_count_label = None
+        self.latest_rename_label = None
+        self.latest_rename_info = None  # Tuple of (original_name, new_name)
+        
         # Word separator symbols for Ctrl+Arrow navigation
         # Characters in this string will be treated as word separators
         # Whitespace is always treated as a separator
@@ -344,6 +349,8 @@ class FileManagerApp:
         self.update_path_labels()  # Set initial path label states
         self.update_button_states()  # Set initial button states
         self.update_naming_pattern_label()  # Set initial label state
+        self.update_file_count_label()  # Set initial file count
+        self.update_latest_rename_label()  # Set initial latest rename label
         
     def create_ui(self):
         """Create the user interface"""
@@ -450,9 +457,17 @@ class FileManagerApp:
         files_header_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 5))
         files_header_frame.columnconfigure(1, weight=1)
         
-        tracked_label = ttk.Label(files_header_frame, text="Tracked Files:")
-        tracked_label.grid(row=0, column=0, sticky=tk.W)
+        # Tracked files label and count in a frame
+        tracked_label_frame = ttk.Frame(files_header_frame)
+        tracked_label_frame.grid(row=0, column=0, sticky=tk.W)
+        
+        tracked_label = ttk.Label(tracked_label_frame, text="Tracked Files:")
+        tracked_label.pack(side=tk.LEFT)
         ToolTip(tracked_label, "List of files to be copied and renamed. Files show as 'original_name → preview_name'. Colors indicate conflicts:\n• Red background = duplicate preview names\n• Blue background = preview name exists in destination\n• Normal = no conflicts")
+        
+        # File count label
+        self.file_count_label = ttk.Label(tracked_label_frame, text="(0)")
+        self.file_count_label.pack(side=tk.LEFT, padx=(5, 0))
         
         # View toggle buttons
         view_frame = ttk.Frame(files_header_frame)
@@ -467,6 +482,25 @@ class FileManagerApp:
                                        value="grid", command=self.update_files_display)
         grid_view_btn.pack(side=tk.LEFT, padx=5)
         ToolTip(grid_view_btn, "Show files in a grid layout with thumbnails, file names, and preview names.")
+        
+        # Latest rename info label (frame with multiple colored labels)
+        self.latest_rename_frame = ttk.Frame(files_header_frame)
+        self.latest_rename_frame.grid(row=0, column=2, sticky=tk.E, padx=(10, 0))
+        
+        self.latest_rename_prefix = tk.Label(self.latest_rename_frame, text="Latest: ", font=("Arial", 9))
+        self.latest_rename_prefix.pack(side=tk.LEFT)
+        
+        self.latest_rename_original = tk.Label(self.latest_rename_frame, text="", fg="red", font=("Arial", 9))
+        self.latest_rename_original.pack(side=tk.LEFT)
+        
+        self.latest_rename_arrow = tk.Label(self.latest_rename_frame, text=" → ", font=("Arial", 9))
+        self.latest_rename_arrow.pack(side=tk.LEFT)
+        
+        self.latest_rename_preview = tk.Label(self.latest_rename_frame, text="", fg="green", font=("Arial", 9))
+        self.latest_rename_preview.pack(side=tk.LEFT)
+        
+        # Keep reference for compatibility
+        self.latest_rename_label = self.latest_rename_frame
         
 
         
@@ -600,6 +634,7 @@ class FileManagerApp:
         self.naming_pattern.trace('w', lambda *args: self.update_files_display())
         self.naming_pattern.trace('w', lambda *args: self.update_rules_display())
         self.naming_pattern.trace('w', lambda *args: self.update_naming_pattern_label())
+        self.naming_pattern.trace('w', lambda *args: self.update_latest_rename_label())  # Update preview when naming pattern changes
     
     def show_status(self, message, message_type="info"):
         """Show a status message in the status area"""
@@ -666,6 +701,39 @@ class FileManagerApp:
         # Clear Tracked Files button: enabled only if has tracked files
         if self.clear_tracked_btn:
             self.clear_tracked_btn.config(state='normal' if has_tracked_files else 'disabled')
+    
+    def update_file_count_label(self):
+        """Update the file count label to show the number of tracked files"""
+        if self.file_count_label:
+            count = len(self.tracked_files)
+            self.file_count_label.config(text=f"({count})")
+    
+    def update_latest_rename_label(self):
+        """Update the latest rename label to show the preview of the most recently added file"""
+        if hasattr(self, 'latest_rename_original') and hasattr(self, 'latest_rename_preview'):
+            # Show preview of the last file in the tracked files list (most recently added)
+            if self.tracked_files:
+                last_index = len(self.tracked_files) - 1
+                file_path = self.tracked_files[last_index]
+                original_filename = os.path.basename(file_path)
+                
+                # Generate preview name
+                preview_name = self.generate_filename_preview(last_index, len(self.tracked_files))
+                file_ext = os.path.splitext(file_path)[1]
+                preview_full_name = preview_name + file_ext
+                
+                # Update colored labels
+                self.latest_rename_original.config(text=original_filename)
+                self.latest_rename_preview.config(text=preview_full_name)
+            elif self.latest_rename_info:
+                # Fall back to showing the last actual rename operation if no files are tracked
+                original_name, new_name = self.latest_rename_info
+                self.latest_rename_original.config(text=original_name)
+                self.latest_rename_preview.config(text=new_name)
+            else:
+                # Clear the labels
+                self.latest_rename_original.config(text="")
+                self.latest_rename_preview.config(text="")
     
     def browse_source(self):
         # Get initial directory - use current field value or script directory
@@ -776,6 +844,8 @@ class FileManagerApp:
         if file_path not in self.tracked_files:
             self.tracked_files.append(file_path)
             self.update_files_display()
+            self.update_file_count_label()
+            self.update_latest_rename_label()
     
     def generate_thumbnail(self, file_path, size=(150, 150), retry_count=0):
         """Generate a thumbnail for an image file"""
@@ -955,6 +1025,7 @@ class FileManagerApp:
         self.last_files_state = self._get_current_files_state()
         
         self.update_button_states()
+        self.update_latest_rename_label()  # Update preview when display changes (rules/pattern changes)
     
     def show_file_conflict_dialog(self, existing_files):
         """Show dialog for handling file conflicts with multiple options"""
@@ -1581,6 +1652,8 @@ class FileManagerApp:
             # Clear widget tracking to force rebuild on removal
             self.file_widgets.clear()
             self.update_files_display()
+            self.update_file_count_label()
+            self.update_latest_rename_label()
     
     def has_duplicate_preview_name(self, current_index, preview_full_name):
         """Check if the preview name is duplicated among other tracked files"""
@@ -1704,6 +1777,8 @@ class FileManagerApp:
         # Clear widget tracking
         self.file_widgets.clear()
         self.update_files_display()
+        self.update_file_count_label()
+        self.update_latest_rename_label()
     
     def add_files_manually(self):
         """Open file dialog to manually select files to add"""
@@ -1740,6 +1815,8 @@ class FileManagerApp:
             
             if added_count > 0:
                 self.update_files_display()
+                self.update_file_count_label()
+                self.update_latest_rename_label()
                 if skipped_count > 0:
                     self.show_status(f"Added {added_count} files, skipped {skipped_count} (already tracked or format filter)", "success")
                 else:
@@ -2030,6 +2107,7 @@ class FileManagerApp:
             
             if added_count > 0:
                 self.update_files_display()
+                self.update_file_count_label()
                 if skipped_count > 0:
                     self.show_status(f"Added {added_count} files, skipped {skipped_count} (already tracked or format filter)", "success")
                 else:
@@ -2172,6 +2250,11 @@ class FileManagerApp:
                     
                     shutil.copy2(file_path, dest_path)
                     copied_count += 1
+                    
+                    # Track the latest rename (store original filename and new filename)
+                    original_filename = os.path.basename(file_path)
+                    new_filename = os.path.basename(dest_path)
+                    self.latest_rename_info = (original_filename, new_filename)
             
             # Increment batch counters
             for rule in self.rules:
@@ -2181,7 +2264,9 @@ class FileManagerApp:
             # Clear tracked files and update display
             self.tracked_files.clear()
             self.update_files_display()
+            self.update_file_count_label()
             self.update_rules_display()
+            self.update_latest_rename_label()
             
             # Show completion message
             if skipped_count > 0:
